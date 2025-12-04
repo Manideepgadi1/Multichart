@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indices Performance Viewer</title>
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/mouse-wheel-zoom.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        body.dark-mode {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: background-color 0.3s;
+        }
+        
+        body.dark-mode .header {
+            background: #2a2a2a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .title-section h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .title-section p {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        body.dark-mode .title-section p {
+            color: #aaa;
+        }
+        
+        .selection-info {
+            font-size: 14px;
+            color: #666;
+            margin-right: 20px;
+        }
+        
+        body.dark-mode .selection-info {
+            color: #aaa;
+        }
+        
+        .dark-mode-toggle {
+            background: #2c3e50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s;
+        }
+        
+        .dark-mode-toggle:hover {
+            background: #34495e;
+        }
+        
+        body.dark-mode .dark-mode-toggle {
+            background: #f39c12;
+        }
+        
+        body.dark-mode .dark-mode-toggle:hover {
+            background: #e67e22;
+        }
+        
+        .categories {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .category-group {
+            flex: 1;
+        }
+        
+        .category-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .category-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        body.dark-mode .category-select {
+            background: #333;
+            border-color: #555;
+            color: #e0e0e0;
+        }
+        
+        .category-select:hover {
+            border-color: #999;
+        }
+        
+        .category-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .tip {
+            background: #e8f4fd;
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #0066cc;
+            margin-bottom: 20px;
+        }
+        
+        body.dark-mode .tip {
+            background: #2c4a5c;
+            color: #66b3ff;
+        }
+        
+        .tip strong {
+            color: #0052a3;
+        }
+        
+        body.dark-mode .tip strong {
+            color: #4d9fff;
+        }
+        
+        .chart-controls {
+            background: white;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.3s;
+        }
+        
+        body.dark-mode .chart-controls {
+            background: #2a2a2a;
+            border-bottom-color: #444;
+        }
+        
+        .zoom-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .zoom-label {
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 5px;
+        }
+        
+        .zoom-btn {
+            padding: 6px 14px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        body.dark-mode .zoom-btn {
+            background: #333;
+            border-color: #555;
+            color: #e0e0e0;
+        }
+        
+        .zoom-btn:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+        
+        body.dark-mode .zoom-btn:hover {
+            background: #444;
+        }
+        
+        .zoom-btn.active {
+            background: #2c5282;
+            color: white;
+            border-color: #2c5282;
+        }
+        
+        body.dark-mode .zoom-btn.active {
+            background: #4a90e2;
+            border-color: #4a90e2;
+        }
+        
+        .date-range {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #4a90e2;
+        }
+        
+        .menu-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 10px;
+            color: #666;
+        }
+        
+        body.dark-mode .menu-btn {
+            color: #aaa;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px 40px 40px;
+            transition: background-color 0.3s;
+        }
+        
+        body.dark-mode .chart-container {
+            background: #2a2a2a;
+        }
+        
+        .selected-indices {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+            min-height: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .index-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        body.dark-mode .index-tag {
+            background: #333;
+        }
+        
+        .index-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .index-remove {
+            margin-left: 4px;
+            cursor: pointer;
+            color: #999;
+            font-weight: bold;
+            font-size: 16px;
+            line-height: 1;
+        }
+        
+        .index-remove:hover {
+            color: #e74c3c;
+        }
+        
+        #chart {
+            width: 100%;
+            height: 550px;
+        }
+        
+        .legend-custom {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        
+        .clear-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: 10px;
+        }
+        
+        .clear-btn:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <div class="title-section">
+                <h1>Indices Performance Viewer</h1>
+                <p>Compare Broad, Sectoral, Strategy & Thematic Indices on a single chart.</p>
+            </div>
+            <div style="display: flex; align-items: center;">
+                <span class="selection-info">Selected: <span id="selection-count">0</span> / 4</span>
+                <button class="dark-mode-toggle" onclick="toggleDarkMode()">
+                    <span id="mode-icon">🌙</span>
+                    <span id="mode-text">Dark Mode</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="categories">
+            <div class="category-group">
+                <label class="category-label">BROAD</label>
+                <select class="category-select" id="broad-select" onchange="selectIndex(this, 'Broad')">
+                    <option value="">Choose Broad Indices</option>
+                </select>
+            </div>
+            <div class="category-group">
+                <label class="category-label">SECTORAL</label>
+                <select class="category-select" id="sectoral-select" onchange="selectIndex(this, 'Sectoral')">
+                    <option value="">Choose Sectoral Indices</option>
+                </select>
+            </div>
+            <div class="category-group">
+                <label class="category-label">STRATEGY</label>
+                <select class="category-select" id="strategy-select" onchange="selectIndex(this, 'Strategy')">
+                    <option value="">Choose Strategy Indices</option>
+                </select>
+            </div>
+            <div class="category-group">
+                <label class="category-label">THEMATIC</label>
+                <select class="category-select" id="thematic-select" onchange="selectIndex(this, 'Thematic')">
+                    <option value="">Choose Thematic Indices</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="tip">
+            Tip: You can select up to <strong>4 indices</strong> at a time. All lines are shown in % change from the starting point.
+            <button class="clear-btn" onclick="clearAllSelections()">Clear All</button>
+        </div>
+    </div>
+    
+    <div class="chart-controls">
+        <div class="zoom-buttons">
+            <span class="zoom-label">Zoom</span>
+            <button class="zoom-btn" onclick="setZoom('1m')">1m</button>
+            <button class="zoom-btn" onclick="setZoom('3m')">3m</button>
+            <button class="zoom-btn" onclick="setZoom('6m')">6m</button>
+            <button class="zoom-btn" onclick="setZoom('ytd')">YTD</button>
+            <button class="zoom-btn active" onclick="setZoom('1y')">1y</button>
+            <button class="zoom-btn" onclick="setZoom('all')">All</button>
+        </div>
+        <div class="date-range">
+            <span id="date-start">16 Nov 2024</span>
+            <span>→</span>
+            <span id="date-end">16 Nov 2025</span>
+        </div>
+        <button class="menu-btn">☰</button>
+    </div>
+    
+    <div class="chart-container">
+        <div class="selected-indices" id="selected-indices-display"></div>
+        <div id="chart"></div>
+    </div>
+
+    <script src="chart.js"></script>
+</body>
+</html>

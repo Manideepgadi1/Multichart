@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Highcharts - Cursor/Mouse Zoom Only</title>
+    
+    <!-- Highcharts Stock Library -->
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/modules/mouse-wheel-zoom.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        #chart {
+            width: 100%;
+            height: 550px;
+        }
+        
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f4fd;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #0066cc;
+        }
+        
+        .info h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mouse/Cursor Zoom Chart</h1>
+        
+        <div id="chart"></div>
+        
+        <div class="info">
+            <h3>🖱️ Zoom Controls:</h3>
+            <p><strong>Mouse Wheel:</strong> Scroll up/down to zoom in/out</p>
+            <p><strong>Click & Drag:</strong> Select area on chart to zoom into that range</p>
+            <p><strong>Navigator Drag:</strong> Use bottom handles to select time period</p>
+            <p><strong>Double Click:</strong> Reset zoom to show all data</p>
+        </div>
+    </div>
+
+    <script>
+        // Sample data generator (replace with your data)
+        function generateSampleData() {
+            const data = [];
+            const startDate = new Date('2020-01-01').getTime();
+            const oneDay = 24 * 60 * 60 * 1000;
+            
+            for (let i = 0; i < 1500; i++) {
+                const date = startDate + (i * oneDay);
+                const value = 100 + Math.random() * 50 + (i * 0.1);
+                data.push([date, value]);
+            }
+            
+            return data;
+        }
+        
+        // Create chart with cursor zoom only
+        const sampleData = generateSampleData();
+        
+        Highcharts.stockChart('chart', {
+            chart: {
+                backgroundColor: '#ffffff',
+                zooming: {
+                    mouseWheel: {
+                        enabled: true,      // Enable mouse wheel zoom
+                        sensitivity: 1.1    // Zoom sensitivity (1.1 = smooth)
+                    }
+                }
+            },
+            
+            rangeSelector: {
+                enabled: false  // No preset buttons
+            },
+            
+            navigator: {
+                enabled: true,
+                height: 40,
+                margin: 10,
+                maskFill: 'rgba(100, 149, 237, 0.1)',
+                outlineColor: '#4a90e2',
+                outlineWidth: 1,
+                handles: {
+                    backgroundColor: '#4a90e2',
+                    borderColor: '#2c5282'
+                }
+            },
+            
+            scrollbar: {
+                enabled: false
+            },
+            
+            title: {
+                text: 'Time Series with Mouse Zoom'
+            },
+            
+            xAxis: {
+                type: 'datetime'
+            },
+            
+            yAxis: {
+                title: {
+                    text: 'Value'
+                }
+            },
+            
+            tooltip: {
+                shared: true,
+                crosshairs: true,
+                xDateFormat: '%e %b %Y',
+                valueDecimals: 2
+            },
+            
+            plotOptions: {
+                series: {
+                    showInNavigator: true
+                }
+            },
+            
+            series: [{
+                name: 'Data',
+                data: sampleData,
+                color: '#4a90e2',
+                lineWidth: 2,
+                marker: {
+                    enabled: false,
+                    states: {
+                        hover: {
+                            enabled: true,
+                            radius: 4
+                        }
+                    }
+                }
+            }],
+            
+            credits: {
+                enabled: false
+            },
+            
+            exporting: {
+                enabled: false
+            }
+        });
+    </script>
+</body>
+</html>
