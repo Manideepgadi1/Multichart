@@ -207,32 +207,62 @@ function removeIndex(indexName) {
     updateChart();
 }
 
-function calculatePercentageChange(prices) {
-    if (!prices || prices.length === 0) return [];
+function findCommonBaselineIndex(startDate = null, endDate = null) {
+    if (selectedIndices.length === 0) return 0;
     
-    // Find first non-null value as baseline
-    let basePrice = null;
-    let baseIndex = 0;
-    for (let i = 0; i < prices.length; i++) {
-        if (prices[i] !== null && !isNaN(prices[i])) {
-            basePrice = prices[i];
-            baseIndex = i;
+    const minDate = Math.min(...csvData.dates);
+    const maxDate = Math.max(...csvData.dates);
+    
+    // Use full range if no dates provided
+    if (startDate === null) startDate = minDate;
+    if (endDate === null) endDate = maxDate;
+    
+    // Find the first date where ALL selected indices have valid data
+    let startIndex = 0;
+    for (let i = 0; i < csvData.dates.length; i++) {
+        if (csvData.dates[i] >= startDate) {
+            startIndex = i;
             break;
         }
     }
     
-    if (basePrice === null) return [];
+    for (let i = startIndex; i < csvData.dates.length; i++) {
+        // If endDate is specified, stop if we exceed it
+        if (csvData.dates[i] > endDate) {
+            break;
+        }
+        
+        let allValid = true;
+        
+        for (const item of selectedIndices) {
+            const prices = csvData.data[item.index];
+            if (prices[i] === null || isNaN(prices[i])) {
+                allValid = false;
+                break;
+            }
+        }
+        
+        if (allValid) {
+            return i;
+        }
+    }
+    
+    // Fallback to first data point if no common baseline found
+    return startIndex;
+}
+
+function calculatePercentageChange(prices, baselineIndex) {
+    if (!prices || prices.length === 0) return [];
+    
+    // Use the common baseline index for all indices
+    const basePrice = prices[baselineIndex];
+    
+    if (basePrice === null || isNaN(basePrice)) return [];
     
     const result = [];
-    // Add starting point at 0%
-    result.push({
-        x: csvData.dates[baseIndex],
-        y: 0,
-        price: basePrice
-    });
     
-    // Calculate percentage change for remaining points
-    for (let i = baseIndex + 1; i < prices.length; i++) {
+    // Calculate percentage change from baseline
+    for (let i = baselineIndex; i < prices.length; i++) {
         if (prices[i] === null || isNaN(prices[i])) {
             result.push({
                 x: csvData.dates[i],
@@ -260,9 +290,12 @@ function updateChart() {
         return;
     }
     
+    // Find the common baseline for all selected indices
+    const baselineIndex = findCommonBaselineIndex();
+    
     const series = selectedIndices.map((item, index) => {
         const prices = csvData.data[item.index];
-        const percentageData = calculatePercentageChange(prices);
+        const percentageData = calculatePercentageChange(prices, baselineIndex);
         
         return {
             name: item.index,
@@ -417,6 +450,24 @@ function updateChart() {
         series: series
     });
     
+    // Add event listener for mouse wheel zoom
+    chartInstance.xAxis[0].setExtremes = (function() {
+        const originalSetExtremes = chartInstance.xAxis[0].setExtremes;
+        return function(min, max, redraw, animation) {
+            // Call the original function
+            originalSetExtremes.call(this, min, max, redraw, animation);
+            
+            // After zoom, recalculate baseline and update series
+            setTimeout(() => {
+                if (min !== null && max !== null) {
+                    // Mouse zoom detected - recalculate with new baseline
+                    recalculateSeriesWithNewBaseline(min, max);
+                }
+                updateDateRange();
+            }, 0);
+        };
+    })();
+    
     updateDateRange();
 }
 
@@ -429,36 +480,68 @@ function setZoom(period) {
     
     if (!chartInstance || !csvData) return;
     
-    // Get the latest date from the data
+    // Get the earliest and latest dates from the data
+    const minDate = Math.min(...csvData.dates);
     const maxDate = Math.max(...csvData.dates);
     let startTime;
     
     switch(period) {
         case '1m':
             startTime = maxDate - 30 * 24 * 60 * 60 * 1000;
+            recalculateSeriesWithNewBaseline(startTime, maxDate);
+            chartInstance.xAxis[0].setExtremes(startTime, maxDate);
             break;
         case '3m':
             startTime = maxDate - 90 * 24 * 60 * 60 * 1000;
+            recalculateSeriesWithNewBaseline(startTime, maxDate);
+            chartInstance.xAxis[0].setExtremes(startTime, maxDate);
             break;
         case '6m':
             startTime = maxDate - 180 * 24 * 60 * 60 * 1000;
+            recalculateSeriesWithNewBaseline(startTime, maxDate);
+            chartInstance.xAxis[0].setExtremes(startTime, maxDate);
             break;
         case 'ytd':
             const maxDateObj = new Date(maxDate);
             const yearStart = new Date(maxDateObj.getFullYear(), 0, 1);
             startTime = yearStart.getTime();
+            recalculateSeriesWithNewBaseline(startTime, maxDate);
+            chartInstance.xAxis[0].setExtremes(startTime, maxDate);
             break;
         case '1y':
             startTime = maxDate - 365 * 24 * 60 * 60 * 1000;
+            recalculateSeriesWithNewBaseline(startTime, maxDate);
+            chartInstance.xAxis[0].setExtremes(startTime, maxDate);
             break;
         case 'all':
-            chartInstance.xAxis[0].setExtremes(null, null);
-            updateDateRange();
-            return;
+            // For 'all', use the complete data range
+            recalculateSeriesWithNewBaseline(minDate, maxDate);
+            chartInstance.xAxis[0].setExtremes(minDate, maxDate);
+            break;
     }
     
-    chartInstance.xAxis[0].setExtremes(startTime, maxDate);
     updateDateRange();
+}
+
+function recalculateSeriesWithNewBaseline(startTime, endTime) {
+    if (!chartInstance) return;
+    
+    // Find the new baseline index for this time range
+    const baselineIndex = findCommonBaselineIndex(startTime, endTime);
+    
+    // Recalculate all series with the new baseline
+    selectedIndices.forEach((item, index) => {
+        const prices = csvData.data[item.index];
+        const percentageData = calculatePercentageChange(prices, baselineIndex);
+        
+        // Update the series data
+        if (chartInstance.series[index]) {
+            chartInstance.series[index].setData(percentageData, false);
+        }
+    });
+    
+    // Redraw the chart
+    chartInstance.redraw();
 }
 
 function updateDateRange() {
